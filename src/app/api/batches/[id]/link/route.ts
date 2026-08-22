@@ -1,5 +1,6 @@
 import { NextResponse } from "next/server";
 
+import { generateExplanation } from "@/lib/explain";
 import type { NormalizedFields } from "@/lib/extract";
 import { runControlChecks, type RuleDoc } from "@/lib/rules";
 import { getSupabaseAdmin } from "@/lib/supabase/admin";
@@ -35,6 +36,17 @@ export async function POST(
   if (docs.length === 0) {
     return NextResponse.json(
       { error: "No processed documents in batch — run /process first" },
+      { status: 409 }
+    );
+  }
+  // Linking a partially processed batch would silently produce wrong (or
+  // missing) findings — refuse instead.
+  const unprocessed = (documents ?? []).length - docs.length;
+  if (unprocessed > 0) {
+    return NextResponse.json(
+      {
+        error: `${unprocessed} document(s) are not processed yet — re-run /process before linking`,
+      },
       { status: 409 }
     );
   }
@@ -170,6 +182,48 @@ export async function POST(
     if (findingsError) {
       return NextResponse.json({ error: findingsError.message }, { status: 500 });
     }
+  }
+
+  // Step 7: AI narrates the deterministic findings. Non-fatal on failure —
+  // the findings themselves are already persisted and explainable.
+  let explanation: string | null = null;
+  try {
+    const fileNames = new Map(docs.map((d) => [d.id, d.file_name]));
+    explanation = await generateExplanation({
+      txn_code: txnCode,
+      supplier_name: supplier.name,
+      supplier_code: supplier.supplier_code,
+      invoice_number: invoiceNumber,
+      po_number: poNumber,
+      currency,
+      total_amount: totalAmount,
+      verified_account_masked: supplier.verified_bank_account_masked,
+      requested_account_masked:
+        norms
+          .map((n) => n.bank_account_masked)
+          .find((m) => m && m !== supplier.verified_bank_account_masked) ?? null,
+      risk_score,
+      risk_level,
+      findings: findings.map((f) => ({
+        ...f,
+        source_files: [
+          ...new Set(f.evidence.map((e) => fileNames.get(e.document_id) ?? e.document_id)),
+        ],
+      })),
+    });
+    await supabase
+      .from("transactions")
+      .update({ explanation })
+      .eq("id", transaction.id);
+    await supabase.from("audit_events").insert({
+      actor: "system",
+      action: "explanation_generated",
+      subject_type: "transaction",
+      subject_id: transaction.id,
+      details: { model: "gemini", finding_count: findings.length },
+    });
+  } catch {
+    // leave explanation null; UI falls back to the raw findings
   }
 
   await supabase.from("audit_events").insert([

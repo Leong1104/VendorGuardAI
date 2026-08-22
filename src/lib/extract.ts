@@ -2,7 +2,7 @@ import "server-only";
 
 import { Type } from "@google/genai";
 
-import { getGemini, GEMINI_MODEL } from "@/lib/gemini";
+import { generateWithFallback } from "@/lib/gemini";
 import {
   canonicalSupplierKey,
   maskBankAccount,
@@ -97,9 +97,7 @@ Field notes:
 
 /** Classify one PDF and extract its fields, as printed. */
 export async function classifyAndExtract(pdf: Buffer): Promise<ExtractedFields> {
-  const gemini = getGemini();
-  const response = await gemini.models.generateContent({
-    model: GEMINI_MODEL,
+  const { response } = await generateWithFallback({
     contents: [
       {
         role: "user",

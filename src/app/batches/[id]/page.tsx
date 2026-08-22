@@ -2,6 +2,7 @@ import Link from "next/link";
 import { notFound } from "next/navigation";
 
 import AnalyzeRunner from "@/components/AnalyzeRunner";
+import DeleteBatchButton from "@/components/DeleteBatchButton";
 import type { NormalizedFields } from "@/lib/extract";
 import { getSupabaseAdmin } from "@/lib/supabase/admin";
 import type { Batch, Document } from "@/lib/types";
@@ -158,6 +159,10 @@ export default async function BatchPage({
           ))}
         </ul>
       </section>
+
+      <footer className="border-t border-zinc-200 pt-6 dark:border-zinc-800">
+        <DeleteBatchButton batchId={batch.id} />
+      </footer>
     </main>
   );
 }

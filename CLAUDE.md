@@ -18,12 +18,12 @@ This is a hackathon project repo (DevLeague 2026, Lab 1 — "Digital Transformat
 
 ## Pipeline State
 
-Implemented so far: upload (`POST /api/batches`) → classify/extract/normalize (`POST /api/batches/[id]/process`, Gemini + `src/lib/normalize.ts`) → supplier resolution + linking + deterministic checks (`POST /api/batches/[id]/link`, rules in `src/lib/rules.ts`). The batch page auto-runs the pipeline and redirects to `/transactions/[id]`. Verified against `samples/` (six scenario PDFs, regenerate with `node scripts/generate-sample-pdfs.mjs`): produces TXN-2026-0108, SUP-001, 70/100 high risk, 5 findings. Remaining: AI-generated explanation (step 7) and human review actions + audit UI (step 8).
+All 8 scenario steps are implemented and verified against `samples/` (six scenario PDFs, regenerate with `node scripts/generate-sample-pdfs.mjs`): upload (`POST /api/batches`) → classify/extract/normalize (`/process`, Gemini + `src/lib/normalize.ts`) → supplier resolution + linking + deterministic checks + AI explanation (`/link`, rules in `src/lib/rules.ts`, narration in `src/lib/explain.ts`) → human review (`/api/transactions/[id]/action`: block_payment, request_bank_verification, approve) with audit trail on the transaction page. PDPA deletion: `/api/batches/[id]/delete` removes files + rows, keeping only the deletion audit event. The batch page auto-runs the pipeline and redirects to `/transactions/[id]`. Expected demo result: TXN-2026-0108, SUP-001, 70/100 high risk, 5 findings. Remaining polish: Vercel deployment, dashboard/history page.
 
 ## AI Layer
 
-- **Gemini** (`@google/genai`, model `gemini-3.6-flash` via `src/lib/gemini.ts`) handles extraction, classification, and explanation only. Risk findings must stay deterministic (rule checks over normalized fields) — never LLM output.
-- Note: `gemini-2.5-flash` is retired for this account's API key; use `GEMINI_MODEL` from `src/lib/gemini.ts` rather than hardcoding model names.
+- **Gemini** (`@google/genai` via `src/lib/gemini.ts`) handles extraction, classification, and explanation only. Risk findings must stay deterministic (rule checks over normalized fields) — never LLM output.
+- Always call Gemini through `generateWithFallback()` — it falls through `GEMINI_MODELS` (3.6-flash → 3.5-flash → 3.5-flash-lite → 3.1-flash-lite) on quota/availability errors. The key is on the **paid tier** (upgraded 2026-08-22), so daily caps are no longer the constraint, but keep the fallback for resilience. One demo run costs ~7 calls. `gemini-2.5-flash` is retired for this key; never hardcode model names.
 
 ## Commands
 

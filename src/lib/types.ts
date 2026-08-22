@@ -66,6 +66,7 @@ export interface Transaction {
   risk_score: number;
   risk_level: RiskLevel;
   status: TransactionStatus;
+  explanation: string | null;
   created_at: string;
 }
 
