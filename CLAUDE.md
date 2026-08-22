@@ -4,9 +4,19 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 
 ## Repository State
 
-This is a hackathon project repo (DevLeague 2026, Lab 1 — "Digital Transformation & Operations"). It currently contains **no code** — only the challenge specs in `docs/` and a README. When code is added, update this file with actual build/run/test commands.
+This is a hackathon project repo (DevLeague 2026, Lab 1 — "Digital Transformation & Operations"). The challenge specs live in `docs/`.
 
-**Chosen tech stack**: Next.js (App Router), Supabase (Postgres + Storage + Auth), deployed on Vercel.
+**Tech stack**: Next.js 16 (App Router, Turbopack, TypeScript, Tailwind CSS 4), Supabase (Postgres + Storage + Auth), deployed on Vercel. Source lives in `src/` with the `@/*` import alias.
+
+## Commands
+
+```bash
+npm run dev     # dev server at http://localhost:3000
+npm run build   # production build (also type-checks)
+npm run lint    # ESLint
+```
+
+No test framework is set up yet — update this when one is added.
 
 ## The Challenge
 

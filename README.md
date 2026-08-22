@@ -31,18 +31,17 @@ The AI layer handles extraction, classification, and explanation. Risk findings 
 
 ## Getting Started
 
-> The project has not been scaffolded yet — these steps will be finalized once code lands.
-
 ```bash
 # Install dependencies
 npm install
 
-# Copy environment template and fill in Supabase credentials
-cp .env.example .env.local
-
-# Run the dev server
+# Run the dev server at http://localhost:3000
 npm run dev
 ```
+
+Other commands: `npm run build` (production build), `npm run lint` (ESLint).
+
+> Supabase is not wired up yet — once it is, copy `.env.example` to `.env.local` and fill in the credentials below.
 
 Required environment variables:
 
