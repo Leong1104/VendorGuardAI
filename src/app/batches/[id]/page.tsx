@@ -69,12 +69,19 @@ export default async function BatchPage({
     .maybeSingle<Batch>();
   if (!batch) notFound();
 
-  const { data: documents } = await supabase
-    .from("documents")
-    .select()
-    .eq("batch_id", id)
-    .order("created_at")
-    .returns<Document[]>();
+  const [{ data: documents }, { data: transaction }] = await Promise.all([
+    supabase
+      .from("documents")
+      .select()
+      .eq("batch_id", id)
+      .order("created_at")
+      .returns<Document[]>(),
+    supabase
+      .from("transactions")
+      .select("id, txn_code, risk_score, risk_level")
+      .eq("batch_id", id)
+      .maybeSingle(),
+  ]);
 
   const docs = documents ?? [];
   const hasUnclassified = docs.some((d) => !d.doc_type);
@@ -97,6 +104,26 @@ export default async function BatchPage({
 
       {hasUnclassified && batch.status !== "failed" && (
         <AnalyzeRunner batchId={batch.id} />
+      )}
+
+      {transaction && (
+        <Link
+          href={`/transactions/${transaction.id}`}
+          className="block rounded-xl border border-zinc-200 p-4 transition-colors hover:border-zinc-400 dark:border-zinc-800 dark:hover:border-zinc-500"
+        >
+          <div className="flex items-center justify-between gap-4">
+            <div>
+              <p className="font-medium">{transaction.txn_code}</p>
+              <p className="mt-0.5 text-xs text-zinc-500">
+                Linked transaction with control findings →
+              </p>
+            </div>
+            <span className="rounded-full bg-zinc-900 px-3 py-1 text-xs font-semibold text-white dark:bg-white dark:text-zinc-900">
+              {String(transaction.risk_level).toUpperCase()} ·{" "}
+              {transaction.risk_score}/100
+            </span>
+          </div>
+        </Link>
       )}
 
       <section>

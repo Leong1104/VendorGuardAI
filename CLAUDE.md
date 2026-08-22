@@ -16,6 +16,10 @@ This is a hackathon project repo (DevLeague 2026, Lab 1 — "Digital Transformat
 - Private storage bucket `documents` holds original PDFs.
 - Secrets live in `.env.local` (never committed); `.env.example` is the committed template. `SUPABASE_SECRET_KEY` must be copied from the dashboard by the user.
 
+## Pipeline State
+
+Implemented so far: upload (`POST /api/batches`) → classify/extract/normalize (`POST /api/batches/[id]/process`, Gemini + `src/lib/normalize.ts`) → supplier resolution + linking + deterministic checks (`POST /api/batches/[id]/link`, rules in `src/lib/rules.ts`). The batch page auto-runs the pipeline and redirects to `/transactions/[id]`. Verified against `samples/` (six scenario PDFs, regenerate with `node scripts/generate-sample-pdfs.mjs`): produces TXN-2026-0108, SUP-001, 70/100 high risk, 5 findings. Remaining: AI-generated explanation (step 7) and human review actions + audit UI (step 8).
+
 ## AI Layer
 
 - **Gemini** (`@google/genai`, model `gemini-3.6-flash` via `src/lib/gemini.ts`) handles extraction, classification, and explanation only. Risk findings must stay deterministic (rule checks over normalized fields) — never LLM output.
