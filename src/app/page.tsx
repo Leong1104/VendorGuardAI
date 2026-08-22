@@ -1,3 +1,5 @@
+import Link from "next/link";
+
 import UploadForm from "@/components/UploadForm";
 
 export default function Home() {
@@ -11,6 +13,12 @@ export default function Home() {
         </p>
       </div>
       <UploadForm />
+      <Link
+        href="/dashboard"
+        className="text-sm text-zinc-500 underline-offset-2 hover:text-zinc-900 hover:underline dark:hover:text-zinc-100"
+      >
+        View dashboard →
+      </Link>
       <p className="max-w-md text-center text-xs text-zinc-400">
         Documents are stored privately, processed only for this analysis, and
         can be deleted at any time. Bank account numbers and other personal
