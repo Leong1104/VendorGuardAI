@@ -2,7 +2,7 @@
 
 AI-powered financial report analysis for accounts-payable fraud detection — built for **DevLeague 2026, Lab 1: Digital Transformation & Operations** (sponsored by Experian).
 
-**🔗 Live demo: https://vendorguard-dongqing-gengs-projects.vercel.app** · [Dashboard](https://vendorguard-dongqing-gengs-projects.vercel.app/dashboard)
+**🔗 Live demo: https://vendorguard-dun.vercel.app** · [Dashboard](https://vendorguard-dun.vercel.app/dashboard)
 
 A finance analyst uploads a batch of financial PDFs (supplier profile, purchase order, invoices, delivery order, payment receipt). The system classifies and extracts each document, normalizes the fields, links them into a single transaction, runs deterministic control checks, and produces an explainable risk score with evidence citations — routing high-risk cases to human review.
 
