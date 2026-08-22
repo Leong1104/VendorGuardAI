@@ -19,11 +19,51 @@ export default function Home() {
       >
         View dashboard →
       </Link>
-      <p className="max-w-md text-center text-xs text-zinc-400">
-        Documents are stored privately, processed only for this analysis, and
-        can be deleted at any time. Bank account numbers and other personal
-        data are masked before display (PDPA-aligned).
-      </p>
+
+      <section className="w-full max-w-xl rounded-xl border border-zinc-200 p-5 dark:border-zinc-800">
+        <h2 className="text-sm font-semibold">
+          How your data is handled{" "}
+          <span className="font-normal text-zinc-400">(PDPA Malaysia)</span>
+        </h2>
+        <dl className="mt-3 grid gap-3 text-xs text-zinc-600 sm:grid-cols-2 dark:text-zinc-300">
+          <div>
+            <dt className="font-medium text-zinc-900 dark:text-zinc-100">
+              Minimal processing
+            </dt>
+            <dd className="mt-0.5">
+              Only the fields needed for control checks are extracted. Documents
+              are analyzed for this batch alone and never used to train models.
+            </dd>
+          </div>
+          <div>
+            <dt className="font-medium text-zinc-900 dark:text-zinc-100">
+              PII masked at the source
+            </dt>
+            <dd className="mt-0.5">
+              Bank account numbers are masked during normalization (e.g.{" "}
+              ********4321). Full numbers are never stored or displayed.
+            </dd>
+          </div>
+          <div>
+            <dt className="font-medium text-zinc-900 dark:text-zinc-100">
+              Private by default
+            </dt>
+            <dd className="mt-0.5">
+              Originals live in private storage with database access denied to
+              browsers; every read happens server-side.
+            </dd>
+          </div>
+          <div>
+            <dt className="font-medium text-zinc-900 dark:text-zinc-100">
+              You control retention
+            </dt>
+            <dd className="mt-0.5">
+              Delete any batch at any time — files, extracted fields, and
+              findings are removed; only a deletion audit record remains.
+            </dd>
+          </div>
+        </dl>
+      </section>
     </main>
   );
 }

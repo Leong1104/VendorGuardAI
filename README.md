@@ -2,6 +2,8 @@
 
 AI-powered financial report analysis for accounts-payable fraud detection — built for **DevLeague 2026, Lab 1: Digital Transformation & Operations** (sponsored by Experian).
 
+**🔗 Live demo: https://vendorguard-dongqing-gengs-projects.vercel.app** · [Dashboard](https://vendorguard-dongqing-gengs-projects.vercel.app/dashboard)
+
 A finance analyst uploads a batch of financial PDFs (supplier profile, purchase order, invoices, delivery order, payment receipt). The system classifies and extracts each document, normalizes the fields, links them into a single transaction, runs deterministic control checks, and produces an explainable risk score with evidence citations — routing high-risk cases to human review.
 
 ## How It Works
@@ -15,6 +17,37 @@ A finance analyst uploads a batch of financial PDFs (supplier profile, purchase 
 7. **Review** — high-risk transactions require human action: block payment, request bank verification, with a full audit trail.
 
 The AI layer handles extraction, classification, and explanation. Risk findings come from **deterministic rules over normalized fields** — never LLM guesses — which is what makes every insight auditable and transparent.
+
+## Architecture
+
+```mermaid
+flowchart LR
+    A[Upload batch<br/>6 PDFs] --> B[Store originals<br/>immutable + sha256]
+    B --> C[Gemini: classify +<br/>extract as printed]
+    C --> D[Deterministic<br/>normalization<br/>ISO dates · MYR · masking]
+    D --> E[Supplier resolution<br/>+ document linking]
+    E --> F[Rule engine<br/>5 control checks]
+    F --> G[Gemini: narrate<br/>findings only]
+    G --> H[Human review<br/>block · verify · audit]
+```
+
+- **Next.js 16** (App Router) — UI and API routes; all data access is server-side
+- **Supabase** — Postgres (RLS deny-by-default) + private storage bucket for originals
+- **Gemini** — classification, field extraction, and explanation narration only; the risk score itself is pure code (`src/lib/rules.ts`), so identical inputs always produce identical findings, each citing its source documents
+
+## 3-Minute Demo Script
+
+Sample PDFs are in `samples/` (regenerate with `node scripts/generate-sample-pdfs.mjs`).
+
+| Time | Action | What to say |
+| --- | --- | --- |
+| 0:00–0:30 | Open the home page, select all six PDFs from `samples/`, upload | Finance teams review these documents by hand; inconsistencies slip through |
+| 0:30–1:15 | Batch page auto-analyzes; point at classifications appearing with confidence %, normalized fields, masked accounts | Each PDF is classified and extracted separately; dates → ISO, amounts → MYR, bank accounts masked at normalization (PDPA) |
+| 1:15–2:00 | Auto-redirects to the transaction; show the linked summary and the duplicate-invoice finding's two different file hashes | Six documents resolved to one supplier (SUP-001) and linked into TXN-2026-0108 |
+| 2:00–2:35 | Scroll the risk panel: 70/100 HIGH, five findings with evidence chips, AI explanation | The score is additive rule points, not an AI guess — every finding cites its source document and field; the AI only narrates |
+| 2:35–3:00 | Click **Block payment**, then **Request bank verification**; show the audit trail; end on `/dashboard` | High risk requires a human decision; every action is audit-logged |
+
+Re-running the demo is safe: repeat uploads get a suffixed transaction code and resolve to the existing supplier.
 
 ## Privacy & PDPA Compliance
 
