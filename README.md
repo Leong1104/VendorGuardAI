@@ -27,6 +27,7 @@ The AI layer handles extraction, classification, and explanation. Risk findings 
 
 - **[Next.js](https://nextjs.org)** — App Router frontend and API routes (upload flow, dashboard, review actions)
 - **[Supabase](https://supabase.com)** — Postgres database, file storage for original PDFs, and auth
+- **[Gemini](https://ai.google.dev)** — document extraction, classification, and explanations
 - **[Vercel](https://vercel.com)** — hosting and deployment
 
 ## Getting Started
@@ -48,7 +49,7 @@ Copy `.env.example` to `.env.local` and fill in the secrets:
 | `NEXT_PUBLIC_SUPABASE_URL` | Supabase project URL |
 | `NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY` | Supabase publishable key (safe for the browser) |
 | `SUPABASE_SECRET_KEY` | Server-only secret key — all DB/storage access goes through the server |
-| `ANTHROPIC_API_KEY` | For document extraction, classification, and explanations |
+| `GEMINI_API_KEY` | Gemini API key — document extraction, classification, and explanations |
 
 All database tables have row-level security enabled with no policies (deny by default): the browser can never read data directly, and every query runs server-side where PII is masked before rendering.
 

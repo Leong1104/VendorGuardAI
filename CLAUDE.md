@@ -16,6 +16,11 @@ This is a hackathon project repo (DevLeague 2026, Lab 1 — "Digital Transformat
 - Private storage bucket `documents` holds original PDFs.
 - Secrets live in `.env.local` (never committed); `.env.example` is the committed template. `SUPABASE_SECRET_KEY` must be copied from the dashboard by the user.
 
+## AI Layer
+
+- **Gemini** (`@google/genai`, model `gemini-3.6-flash` via `src/lib/gemini.ts`) handles extraction, classification, and explanation only. Risk findings must stay deterministic (rule checks over normalized fields) — never LLM output.
+- Note: `gemini-2.5-flash` is retired for this account's API key; use `GEMINI_MODEL` from `src/lib/gemini.ts` rather than hardcoding model names.
+
 ## Commands
 
 ```bash
