@@ -41,16 +41,16 @@ npm run dev
 
 Other commands: `npm run build` (production build), `npm run lint` (ESLint).
 
-> Supabase is not wired up yet — once it is, copy `.env.example` to `.env.local` and fill in the credentials below.
-
-Required environment variables:
+Copy `.env.example` to `.env.local` and fill in the secrets:
 
 | Variable | Description |
 | --- | --- |
 | `NEXT_PUBLIC_SUPABASE_URL` | Supabase project URL |
-| `NEXT_PUBLIC_SUPABASE_ANON_KEY` | Supabase publishable (anon) key |
-| `SUPABASE_SERVICE_ROLE_KEY` | Server-side key for storage and privileged queries |
+| `NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY` | Supabase publishable key (safe for the browser) |
+| `SUPABASE_SECRET_KEY` | Server-only secret key — all DB/storage access goes through the server |
 | `ANTHROPIC_API_KEY` | For document extraction, classification, and explanations |
+
+All database tables have row-level security enabled with no policies (deny by default): the browser can never read data directly, and every query runs server-side where PII is masked before rendering.
 
 ## Docs
 

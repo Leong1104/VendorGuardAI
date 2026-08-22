@@ -8,6 +8,14 @@ This is a hackathon project repo (DevLeague 2026, Lab 1 — "Digital Transformat
 
 **Tech stack**: Next.js 16 (App Router, Turbopack, TypeScript, Tailwind CSS 4), Supabase (Postgres + Storage + Auth), deployed on Vercel. Source lives in `src/` with the `@/*` import alias.
 
+## Supabase
+
+- Project: `vendorguard` (ref `kukdgmjbltdopfiucuds`, region ap-southeast-1). Manage via the Supabase MCP tools.
+- **Access model**: all DB/storage access is server-side through the service-role client (`src/lib/supabase/admin.ts`, `getSupabaseAdmin()`). RLS is enabled on every table with **no policies** — deny by default. Do not add browser-side Supabase reads without adding proper policies first.
+- Tables: `batches`, `documents` (immutable originals + `extracted`/`normalized` jsonb), `suppliers`, `transactions`, `transaction_documents`, `findings` (rule results with `evidence` jsonb provenance), `audit_events`. Domain types mirror these in `src/lib/types.ts`.
+- Private storage bucket `documents` holds original PDFs.
+- Secrets live in `.env.local` (never committed); `.env.example` is the committed template. `SUPABASE_SECRET_KEY` must be copied from the dashboard by the user.
+
 ## Commands
 
 ```bash
