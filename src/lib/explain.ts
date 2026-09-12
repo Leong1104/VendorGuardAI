@@ -1,11 +1,15 @@
 import "server-only";
 
+import { buildExplanation } from "@/lib/explain-local";
 import { generateWithFallback } from "@/lib/gemini";
+import { getAiProvider } from "@/lib/provider";
 import type { RuleFinding } from "@/lib/rules";
 
-// Step 7: Gemini narrates the deterministic findings in plain language.
-// The model receives ONLY the rule-engine output and normalized summary —
-// it cannot add, remove, or re-score risks, just explain them.
+// Step 7: narrate the deterministic findings in plain language. With the
+// Gemini provider the model receives ONLY the rule-engine output and
+// normalized summary — it cannot add, remove, or re-score risks, just
+// explain them. With the local provider a fixed template renders the same
+// input, so the narrative is itself deterministic.
 
 export interface ExplainInput {
   txn_code: string;
@@ -37,8 +41,17 @@ Hard constraints:
 - Bank accounts are already masked; reproduce them exactly as given.
 - Plain text only, no markdown headers. Keep it under 220 words.`;
 
-export async function generateExplanation(input: ExplainInput): Promise<string> {
-  const { response } = await generateWithFallback({
+export interface Explanation {
+  text: string;
+  /** What produced the text: a Gemini model id, or "local-template". */
+  model: string;
+}
+
+export async function generateExplanation(input: ExplainInput): Promise<Explanation> {
+  if (getAiProvider() === "local") {
+    return { text: buildExplanation(input), model: "local-template" };
+  }
+  const { response, model } = await generateWithFallback({
     contents: [
       {
         role: "user",
@@ -49,5 +62,5 @@ export async function generateExplanation(input: ExplainInput): Promise<string> 
   });
   const text = response.text?.trim();
   if (!text) throw new Error("Empty explanation from model");
-  return text;
+  return { text, model };
 }

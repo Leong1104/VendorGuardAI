@@ -187,9 +187,10 @@ export async function POST(
   // Step 7: AI narrates the deterministic findings. Non-fatal on failure —
   // the findings themselves are already persisted and explainable.
   let explanation: string | null = null;
+  let explanationModel: string | null = null;
   try {
     const fileNames = new Map(docs.map((d) => [d.id, d.file_name]));
-    explanation = await generateExplanation({
+    const generated = await generateExplanation({
       txn_code: txnCode,
       supplier_name: supplier.name,
       supplier_code: supplier.supplier_code,
@@ -211,6 +212,8 @@ export async function POST(
         ],
       })),
     });
+    explanation = generated.text;
+    explanationModel = generated.model;
     await supabase
       .from("transactions")
       .update({ explanation })
@@ -220,7 +223,7 @@ export async function POST(
       action: "explanation_generated",
       subject_type: "transaction",
       subject_id: transaction.id,
-      details: { model: "gemini", finding_count: findings.length },
+      details: { model: explanationModel, finding_count: findings.length },
     });
   } catch {
     // leave explanation null; UI falls back to the raw findings

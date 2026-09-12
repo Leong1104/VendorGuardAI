@@ -5,6 +5,7 @@ import {
   normalizeExtracted,
   redactExtracted,
 } from "@/lib/extract";
+import { getAiProvider } from "@/lib/provider";
 import { DOCUMENTS_BUCKET, getSupabaseAdmin } from "@/lib/supabase/admin";
 import type { Document } from "@/lib/types";
 
@@ -12,7 +13,8 @@ export const maxDuration = 120;
 
 // POST /api/batches/[id]/process — classify, extract, and normalize every
 // unprocessed document in the batch. Each document is processed separately
-// (one Gemini call per PDF); normalization is deterministic code.
+// (one Gemini call per PDF, or the local text-layer parser when no API is
+// configured); normalization is deterministic code.
 export async function POST(
   _request: Request,
   { params }: { params: Promise<{ id: string }> }
@@ -73,6 +75,7 @@ export async function POST(
           file_name: doc.file_name,
           doc_type: extracted.doc_type,
           confidence: extracted.confidence,
+          provider: getAiProvider(),
         },
       });
 

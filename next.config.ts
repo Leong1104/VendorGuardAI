@@ -6,6 +6,9 @@ const nextConfig: NextConfig = {
   turbopack: {
     root: __dirname,
   },
+  // pdf.js is loaded at runtime from node_modules (it resolves its own
+  // worker file) rather than bundled into the server build.
+  serverExternalPackages: ["pdfjs-dist"],
 };
 
 export default nextConfig;

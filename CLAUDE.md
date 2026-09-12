@@ -22,8 +22,10 @@ All 8 scenario steps are implemented and verified against `samples/` (six scenar
 
 ## AI Layer
 
-- **Gemini** (`@google/genai` via `src/lib/gemini.ts`) handles extraction, classification, and explanation only. Risk findings must stay deterministic (rule checks over normalized fields) — never LLM output.
-- Always call Gemini through `generateWithFallback()` — it falls through `GEMINI_MODELS` (3.6-flash → 3.5-flash → 3.5-flash-lite → 3.1-flash-lite) on quota/availability errors. The key is on the **paid tier** (upgraded 2026-08-22), so daily caps are no longer the constraint, but keep the fallback for resilience. One demo run costs ~7 calls. `gemini-2.5-flash` is retired for this key; never hardcode model names.
+- Two interchangeable providers, selected by `getAiProvider()` in `src/lib/provider.ts`: `AI_PROVIDER=local|gemini` wins; otherwise Gemini is used only when `GEMINI_API_KEY` is set. Risk findings must stay deterministic (rule checks over normalized fields) in both modes — never LLM output.
+- **Local** (default with no key): `src/lib/pdf-text.ts` pulls the text layer with `pdfjs-dist` (legacy build, listed in `serverExternalPackages`), `src/lib/extract-local.ts` classifies by title/labels and reads `Label: value` fields, `src/lib/explain-local.ts` renders the narrative from a template. Label-driven, so it only handles known AP layouts; scanned PDFs yield `unknown`. The audit event `explanation_generated` records `model: "local-template"` and the transaction page labels the narrative accordingly. Verify with `npx tsx scripts/verify-local-pipeline.ts` (expects 5 findings, 70/100).
+- Shared field types and `normalizeExtracted()` live in `src/lib/fields.ts` (pure, no server-only imports); `src/lib/extract.ts` re-exports them.
+- **Gemini** (`@google/genai` via `src/lib/gemini.ts`) handles extraction, classification, and explanation only. Always call Gemini through `generateWithFallback()` — it falls through `GEMINI_MODELS` (3.6-flash → 3.5-flash → 3.5-flash-lite → 3.1-flash-lite) on quota/availability errors. The key is on the **paid tier** (upgraded 2026-08-22), so daily caps are no longer the constraint, but keep the fallback for resilience. One demo run costs ~7 calls. `gemini-2.5-flash` is retired for this key; never hardcode model names.
 
 ## Commands
 

@@ -189,6 +189,12 @@ export default async function TransactionPage({
   const docName = (docId: string) =>
     documents.find((d) => d.id === docId)?.file_name ?? docId;
 
+  // The audit trail records what produced the narrative, so the UI can be
+  // honest about whether an AI model was involved.
+  const explanationIsTemplate =
+    (auditEvents ?? []).find((e) => e.action === "explanation_generated")
+      ?.details?.model === "local-template";
+
   const requestedAccount = documents
     .map(
       (d) =>
@@ -258,7 +264,7 @@ export default async function TransactionPage({
         )}
       </Card>
 
-      {/* AI explanation */}
+      {/* Explanation (Gemini narrative or local template, per audit trail) */}
       {txn.explanation && (
         <section>
           <SectionTitle>Why this was flagged</SectionTitle>
@@ -271,15 +277,17 @@ export default async function TransactionPage({
                 Analyst explanation
               </div>
               <span className="rounded-full bg-white px-2.5 py-1 text-[11px] font-medium text-zinc-500 ring-1 ring-inset ring-zinc-200 dark:bg-zinc-900 dark:text-zinc-400 dark:ring-zinc-700">
-                AI-narrated · grounded in the findings below
+                {explanationIsTemplate
+                  ? "Rule-generated · from the findings below"
+                  : "AI-narrated · grounded in the findings below"}
               </span>
             </div>
             <div className="px-6 py-5">
               <ExplanationBody text={txn.explanation} />
               <p className="mt-4 border-t border-zinc-100 pt-3 text-xs text-zinc-400 dark:border-zinc-800">
-                This narrative is generated from the deterministic rule findings
-                only — the AI cannot add, remove, or re-score risks. Every
-                finding below cites its source documents.
+                {explanationIsTemplate
+                  ? "This narrative is rendered by a fixed template from the deterministic rule findings only — no AI model was involved. Every finding below cites its source documents."
+                  : "This narrative is generated from the deterministic rule findings only — the AI cannot add, remove, or re-score risks. Every finding below cites its source documents."}
               </p>
             </div>
           </Card>
