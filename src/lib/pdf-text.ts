@@ -1,45 +1,22 @@
-// Text-layer extraction with pdf.js. Returns the document as visual lines
-// (text items grouped by their y-position, top to bottom), which is what the
-// local field parser works on. No OCR: scanned PDFs without a text layer
-// come back empty and classify as "unknown".
+// Browser text-layer extraction. pdf.js parses in a Web Worker; the worker
+// script is emitted as a static asset by the bundler via `new URL(...)`.
 
-const LINE_TOLERANCE = 2; // points; items closer than this share a line
+import { linesFromDocument } from "@/lib/pdf-lines";
 
 export async function extractPdfLines(pdf: Uint8Array): Promise<string[]> {
-  // The legacy build runs in Node without a DOM; the dynamic import keeps
-  // pdf.js out of any bundle that never processes a PDF.
-  const pdfjs = await import("pdfjs-dist/legacy/build/pdf.mjs");
-  // pdf.js rejects Buffer (a Uint8Array subclass); hand it a plain view.
+  const pdfjs = await import("pdfjs-dist");
+  if (!pdfjs.GlobalWorkerOptions.workerSrc) {
+    pdfjs.GlobalWorkerOptions.workerSrc = new URL(
+      "pdfjs-dist/build/pdf.worker.min.mjs",
+      import.meta.url
+    ).toString();
+  }
+  // pdf.js insists on a plain Uint8Array view (not a Buffer subclass).
   const data = new Uint8Array(pdf.buffer, pdf.byteOffset, pdf.byteLength);
-  const task = pdfjs.getDocument({ data, useSystemFonts: true });
-  const doc = await task.promise;
-
-  const lines: string[] = [];
+  const task = pdfjs.getDocument({ data });
   try {
-    for (let p = 1; p <= doc.numPages; p++) {
-      const page = await doc.getPage(p);
-      const content = await page.getTextContent();
-
-      let current = "";
-      let lastY: number | null = null;
-      for (const item of content.items) {
-        if (!("str" in item)) continue;
-        const y = item.transform[5];
-        if (lastY !== null && Math.abs(y - lastY) > LINE_TOLERANCE) {
-          lines.push(current);
-          current = "";
-        }
-        const needsSpace =
-          current && !current.endsWith(" ") && !item.str.startsWith(" ");
-        current += (needsSpace ? " " : "") + item.str;
-        lastY = y;
-      }
-      lines.push(current);
-      page.cleanup();
-    }
+    return await linesFromDocument(await task.promise);
   } finally {
     await task.destroy();
   }
-
-  return lines.map((l) => l.replace(/\s+/g, " ").trim()).filter(Boolean);
 }

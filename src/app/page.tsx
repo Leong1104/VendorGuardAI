@@ -12,9 +12,9 @@ export default function Home() {
           Catch invoice fraud before payment
         </h1>
         <p className="mx-auto mt-3 max-w-md text-zinc-500">
-          Upload a batch of AP documents. VendorGuard extracts, links, and
-          risk-checks them with deterministic controls — every finding
-          traceable to its source PDF.
+          Select a batch of AP documents. VendorGuard extracts, links, and
+          risk-checks them with deterministic controls, entirely in your
+          browser — every finding traceable to its source PDF.
         </p>
       </div>
 
@@ -33,8 +33,8 @@ export default function Home() {
               Minimal processing
             </dt>
             <dd className="mt-1 leading-relaxed">
-              Only the fields needed for control checks are extracted. Documents
-              are analyzed for this batch alone and never used to train models.
+              Only the fields needed for control checks are read from each PDF&apos;s
+              text layer. No AI model or third-party service ever sees them.
             </dd>
           </div>
           <div>
@@ -49,11 +49,11 @@ export default function Home() {
           </div>
           <div>
             <dt className="font-medium text-zinc-900 dark:text-zinc-100">
-              Private by default
+              Never leaves your device
             </dt>
             <dd className="mt-1 leading-relaxed">
-              Originals live in private storage with database access denied to
-              browsers; every read happens server-side.
+              Nothing is uploaded. PDFs, extracted fields and findings are stored
+              in this browser only and never leave your device.
             </dd>
           </div>
           <div>
@@ -61,8 +61,8 @@ export default function Home() {
               You control retention
             </dt>
             <dd className="mt-1 leading-relaxed">
-              Delete any batch at any time — files, extracted fields, and
-              findings are removed; only a deletion audit record remains.
+              Delete any batch at any time, or erase everything from the
+              dashboard — files, extracted fields, and findings are removed.
             </dd>
           </div>
         </dl>

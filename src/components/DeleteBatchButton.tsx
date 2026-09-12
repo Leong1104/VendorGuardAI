@@ -3,6 +3,8 @@
 import { useState } from "react";
 import { useRouter } from "next/navigation";
 
+import { deleteBatch } from "@/lib/pipeline";
+
 // PDPA: the analyst controls uploaded data and can delete it at any time.
 export default function DeleteBatchButton({ batchId }: { batchId: string }) {
   const router = useRouter();
@@ -14,9 +16,7 @@ export default function DeleteBatchButton({ batchId }: { batchId: string }) {
     setBusy(true);
     setError(null);
     try {
-      const res = await fetch(`/api/batches/${batchId}/delete`, { method: "POST" });
-      const data = await res.json();
-      if (!res.ok) throw new Error(data.error ?? `Delete failed (${res.status})`);
+      await deleteBatch(batchId);
       router.push("/");
     } catch (err) {
       setError(err instanceof Error ? err.message : "Delete failed");

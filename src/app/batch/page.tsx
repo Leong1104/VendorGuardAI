@@ -1,13 +1,14 @@
+"use client";
+
 import Link from "next/link";
-import { notFound } from "next/navigation";
+import { useSearchParams } from "next/navigation";
+import { Suspense, useCallback } from "react";
 
 import AnalyzeRunner from "@/components/AnalyzeRunner";
 import DeleteBatchButton from "@/components/DeleteBatchButton";
-import type { NormalizedFields } from "@/lib/extract";
-import { getSupabaseAdmin } from "@/lib/supabase/admin";
-import type { Batch, Document } from "@/lib/types";
-
-export const dynamic = "force-dynamic";
+import { db } from "@/lib/db";
+import type { NormalizedFields } from "@/lib/fields";
+import { useQuery } from "@/lib/use-query";
 
 const DOC_TYPE_LABELS: Record<string, string> = {
   supplier_profile: "Supplier profile",
@@ -55,36 +56,25 @@ function NormalizedView({ n }: { n: NormalizedFields }) {
   );
 }
 
-export default async function BatchPage({
-  params,
-}: {
-  params: Promise<{ id: string }>;
-}) {
-  const { id } = await params;
-  const supabase = getSupabaseAdmin();
+async function loadBatch(id: string) {
+  const batch = await db.get("batches", id);
+  if (!batch) return null;
+  const documents = (await db.all("documents"))
+    .filter((d) => d.batch_id === id)
+    .sort((a, b) => a.created_at.localeCompare(b.created_at));
+  const transaction = (await db.all("transactions")).find((t) => t.batch_id === id) ?? null;
+  return { batch, documents, transaction };
+}
 
-  const { data: batch } = await supabase
-    .from("batches")
-    .select()
-    .eq("id", id)
-    .maybeSingle<Batch>();
-  if (!batch) notFound();
+function BatchView({ id }: { id: string }) {
+  const loader = useCallback(() => loadBatch(id), [id]);
+  const { data, error, loading } = useQuery(loader);
 
-  const [{ data: documents }, { data: transaction }] = await Promise.all([
-    supabase
-      .from("documents")
-      .select()
-      .eq("batch_id", id)
-      .order("created_at")
-      .returns<Document[]>(),
-    supabase
-      .from("transactions")
-      .select("id, txn_code, risk_score, risk_level")
-      .eq("batch_id", id)
-      .maybeSingle(),
-  ]);
+  if (loading) return <PageMessage>Loading batch…</PageMessage>;
+  if (error) return <PageMessage>Could not read local data: {error}</PageMessage>;
+  if (!data) return <PageMessage>Batch not found in this browser.</PageMessage>;
 
-  const docs = documents ?? [];
+  const { batch, documents: docs, transaction } = data;
   const hasUnclassified = docs.some((d) => !d.doc_type);
 
   return (
@@ -114,7 +104,7 @@ export default async function BatchPage({
 
       {transaction && (
         <Link
-          href={`/transactions/${transaction.id}`}
+          href={`/transaction?id=${transaction.id}`}
           className="block rounded-2xl border border-zinc-200 bg-white p-4 shadow-sm transition-colors hover:border-zinc-400 dark:border-zinc-800 dark:bg-zinc-900 dark:hover:border-zinc-500"
         >
           <div className="flex items-center justify-between gap-4">
@@ -171,5 +161,29 @@ export default async function BatchPage({
         <DeleteBatchButton batchId={batch.id} />
       </footer>
     </main>
+  );
+}
+
+function PageMessage({ children }: { children: React.ReactNode }) {
+  return (
+    <main className="mx-auto w-full max-w-4xl px-6 py-10">
+      <p className="text-sm text-zinc-500">{children}</p>
+    </main>
+  );
+}
+
+// Static export cannot prerender dynamic segments, so the id travels as a
+// query parameter. useSearchParams needs a Suspense boundary.
+function BatchFromQuery() {
+  const id = useSearchParams().get("id");
+  if (!id) return <PageMessage>No batch id given.</PageMessage>;
+  return <BatchView id={id} />;
+}
+
+export default function BatchPage() {
+  return (
+    <Suspense fallback={<PageMessage>Loading batch…</PageMessage>}>
+      <BatchFromQuery />
+    </Suspense>
   );
 }

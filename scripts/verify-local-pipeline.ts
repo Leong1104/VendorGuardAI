@@ -7,10 +7,23 @@ import { createHash } from "node:crypto";
 import { readFileSync, readdirSync } from "node:fs";
 import { join } from "node:path";
 
-import { classifyAndExtractLocal } from "../src/lib/extract-local";
+import * as pdfjs from "pdfjs-dist/legacy/build/pdf.mjs";
+
 import { buildExplanation } from "../src/lib/explain-local";
+import { extractFieldsFromLines } from "../src/lib/extract-local";
 import { normalizeExtracted } from "../src/lib/fields";
+import { linesFromDocument } from "../src/lib/pdf-lines";
 import { runControlChecks, type RuleDoc } from "../src/lib/rules";
+
+// Node has no Web Worker; the legacy build parses in-process.
+async function classifyAndExtractLocal(bytes: Uint8Array) {
+  const task = pdfjs.getDocument({ data: bytes, useSystemFonts: true });
+  try {
+    return extractFieldsFromLines(await linesFromDocument(await task.promise));
+  } finally {
+    await task.destroy();
+  }
+}
 
 const EXPECTED: Record<string, Record<string, unknown>> = {
   "01_supplier_profile.pdf": {

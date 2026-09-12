@@ -1,34 +1,30 @@
 "use client";
 
 import { useState } from "react";
-import { useRouter } from "next/navigation";
+
+import { reviewAction, type ReviewAction } from "@/lib/pipeline";
 
 // Step 8: human review controls. Each action is recorded as an audit event.
 export default function ReviewActions({
   transactionId,
   status,
+  onChange,
 }: {
   transactionId: string;
   status: string;
+  onChange: () => void;
 }) {
-  const router = useRouter();
   const [busy, setBusy] = useState<string | null>(null);
   const [requested, setRequested] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
-  async function act(action: string) {
+  async function act(action: ReviewAction) {
     setBusy(action);
     setError(null);
     try {
-      const res = await fetch(`/api/transactions/${transactionId}/action`, {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ action }),
-      });
-      const data = await res.json();
-      if (!res.ok) throw new Error(data.error ?? `Action failed (${res.status})`);
+      await reviewAction(transactionId, action);
       if (action === "request_bank_verification") setRequested(true);
-      router.refresh();
+      onChange();
     } catch (err) {
       setError(err instanceof Error ? err.message : "Action failed");
     } finally {

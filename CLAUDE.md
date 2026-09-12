@@ -4,38 +4,35 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 
 ## Repository State
 
-This is a hackathon project repo (DevLeague 2026, Lab 1 — "Digital Transformation & Operations"). The challenge specs live in `docs/`.
+This is an archived hackathon project (DevLeague 2026, Lab 1 — "Digital Transformation & Operations"). The challenge specs live in `docs/`. The hackathon is over; the code was reworked afterwards into a **self-contained static site with no backend, database, AI API, or secrets**. The original Supabase + Gemini build is in git history up to commit `cb60b7a` — do not reintroduce those dependencies.
 
-**Tech stack**: Next.js 16 (App Router, Turbopack, TypeScript, Tailwind CSS 4), Supabase (Postgres + Storage + Auth), deployed on Vercel. Source lives in `src/` with the `@/*` import alias.
+**Tech stack**: Next.js 16 (App Router, Turbopack, TypeScript, Tailwind CSS 4) with `output: "export"`, pdf.js (`pdfjs-dist`) for text extraction, IndexedDB for persistence. Source lives in `src/` with the `@/*` import alias. Deployed to Vercel as static files.
 
-## Supabase
+## Architecture
 
-- Project: `vendorguard` (ref `kukdgmjbltdopfiucuds`, region ap-southeast-1). Manage via the Supabase MCP tools.
-- **Access model**: all DB/storage access is server-side through the service-role client (`src/lib/supabase/admin.ts`, `getSupabaseAdmin()`). RLS is enabled on every table with **no policies** — deny by default. Do not add browser-side Supabase reads without adding proper policies first.
-- Tables: `batches`, `documents` (immutable originals + `extracted`/`normalized` jsonb), `suppliers`, `transactions`, `transaction_documents`, `findings` (rule results with `evidence` jsonb provenance), `audit_events`. Domain types mirror these in `src/lib/types.ts`.
-- Private storage bucket `documents` holds original PDFs.
-- Secrets live in `.env.local` (never committed); `.env.example` is the committed template. `SUPABASE_SECRET_KEY` must be copied from the dashboard by the user.
+Everything runs client-side. There are no API routes and no server components that read data.
 
-## Pipeline State
+- `src/lib/db.ts` — IndexedDB wrapper; one object store per former Postgres table (`batches`, `documents`, `files` for PDF bytes, `suppliers`, `transactions`, `transaction_documents`, `findings`, `audit_events`). Domain types in `src/lib/types.ts`. Whole-table reads filtered in JS — volumes are tiny.
+- `src/lib/pipeline.ts` — the eight scenario steps as functions over the store: `createBatch` → `processBatch` → `linkBatch` → `reviewAction`, plus `deleteBatch` (PDPA, keeps only the deletion audit event) and `eraseAllData`. Each mirrors a former API route and records the same audit events.
+- `src/lib/pdf-text.ts` (browser, Web Worker via `new URL(...)`) and `src/lib/pdf-lines.ts` (shared line grouping) — text-layer extraction. No OCR; scanned PDFs classify as `unknown`.
+- `src/lib/extract-local.ts` — label-driven classification (`Label: value` lines) and field extraction. Deliberately strict: a PO reference counts only when labelled as one, so the missing-PO rule fires on the sample invoices. Returns `null` rather than guessing.
+- `src/lib/fields.ts` + `src/lib/normalize.ts` — deterministic normalization; bank accounts are masked here and the raw number is never persisted.
+- `src/lib/rules.ts` — the five control checks and additive score. Must stay deterministic.
+- `src/lib/explain-local.ts` — template narrative from the rule output; the audit event records `model: "local-template"` and the transaction page labels it "Rule-generated".
+- Pages are client components using `src/lib/use-query.ts`. Static export cannot prerender dynamic segments, so detail pages take the id as a query string: `/batch?id=…`, `/transaction?id=…`.
 
-All 8 scenario steps are implemented and verified against `samples/` (six scenario PDFs, regenerate with `node scripts/generate-sample-pdfs.mjs`): upload (`POST /api/batches`) → classify/extract/normalize (`/process`, Gemini + `src/lib/normalize.ts`) → supplier resolution + linking + deterministic checks + AI explanation (`/link`, rules in `src/lib/rules.ts`, narration in `src/lib/explain.ts`) → human review (`/api/transactions/[id]/action`: block_payment, request_bank_verification, approve) with audit trail on the transaction page. PDPA deletion: `/api/batches/[id]/delete` removes files + rows, keeping only the deletion audit event. The batch page auto-runs the pipeline and redirects to `/transactions/[id]`. Expected demo result: TXN-2026-0108, SUP-001, 70/100 high risk, 5 findings. Remaining polish: Vercel deployment, dashboard/history page.
-
-## AI Layer
-
-- Two interchangeable providers, selected by `getAiProvider()` in `src/lib/provider.ts`: `AI_PROVIDER=local|gemini` wins; otherwise Gemini is used only when `GEMINI_API_KEY` is set. Risk findings must stay deterministic (rule checks over normalized fields) in both modes — never LLM output.
-- **Local** (default with no key): `src/lib/pdf-text.ts` pulls the text layer with `pdfjs-dist` (legacy build, listed in `serverExternalPackages`), `src/lib/extract-local.ts` classifies by title/labels and reads `Label: value` fields, `src/lib/explain-local.ts` renders the narrative from a template. Label-driven, so it only handles known AP layouts; scanned PDFs yield `unknown`. The audit event `explanation_generated` records `model: "local-template"` and the transaction page labels the narrative accordingly. Verify with `npx tsx scripts/verify-local-pipeline.ts` (expects 5 findings, 70/100).
-- Shared field types and `normalizeExtracted()` live in `src/lib/fields.ts` (pure, no server-only imports); `src/lib/extract.ts` re-exports them.
-- **Gemini** (`@google/genai` via `src/lib/gemini.ts`) handles extraction, classification, and explanation only. Always call Gemini through `generateWithFallback()` — it falls through `GEMINI_MODELS` (3.6-flash → 3.5-flash → 3.5-flash-lite → 3.1-flash-lite) on quota/availability errors. The key is on the **paid tier** (upgraded 2026-08-22), so daily caps are no longer the constraint, but keep the fallback for resilience. One demo run costs ~7 calls. `gemini-2.5-flash` is retired for this key; never hardcode model names.
+Expected demo result with `samples/` (regenerate with `node scripts/generate-sample-pdfs.mjs`): TXN-2026-0108, SUP-001, 70/100 high risk, 5 findings. `npx tsx scripts/verify-local-pipeline.ts` asserts this in Node; the same flow was also verified in headless Chromium end to end (upload → findings → block payment → delete → erase).
 
 ## Commands
 
 ```bash
 npm run dev     # dev server at http://localhost:3000
-npm run build   # production build (also type-checks)
+npm run build   # static export to out/ (also type-checks)
 npm run lint    # ESLint
+npx tsx scripts/verify-local-pipeline.ts   # extraction + rules over samples/
 ```
 
-No test framework is set up yet — update this when one is added.
+No test framework beyond the verify script is set up — update this when one is added.
 
 ## The Challenge
 
@@ -81,7 +78,7 @@ The demo is scripted to 3 minutes: upload → classification/normalization → l
 
 ## Design Implications
 
-- Risk findings must come from deterministic rule checks over normalized fields, with the AI layer used for extraction/classification/explanation — this is what "explainability" means for this challenge.
+- Risk findings must come from deterministic rule checks over normalized fields — this is what "explainability" means for this challenge. (During the hackathon an AI layer did extraction/classification/explanation; the archived build makes those deterministic as well.)
 - Every finding needs a pointer back to its source document(s); keep document IDs and provenance throughout the pipeline.
 - Bank account numbers and other PII must be masked at the normalization stage, before display.
 

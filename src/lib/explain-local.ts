@@ -1,10 +1,26 @@
-import type { ExplainInput } from "@/lib/explain";
+import type { RuleFinding } from "@/lib/rules";
 import type { RuleCode } from "@/lib/types";
 
-// Template narrator: renders the rule-engine output as the same three-part
-// plain-text explanation the Gemini prompt asks for (overview, one bullet
-// per finding citing source files, recommended actions). Fully
-// deterministic — the same findings always produce the same text.
+// Step 7: template narrator. Renders the rule-engine output as a three-part
+// plain-text explanation (overview, one bullet per finding citing source
+// files, recommended actions). Fully deterministic — the same findings
+// always produce the same text — and it cannot add, remove, or re-score
+// risks because it only formats what the rules produced.
+
+export interface ExplainInput {
+  txn_code: string;
+  supplier_name: string;
+  supplier_code: string;
+  invoice_number: string | null;
+  po_number: string | null;
+  currency: string;
+  total_amount: number | null;
+  verified_account_masked: string | null;
+  requested_account_masked: string | null;
+  risk_score: number;
+  risk_level: string;
+  findings: (RuleFinding & { source_files: string[] })[];
+}
 
 const NEXT_ACTION: Record<RuleCode, string> = {
   bank_mismatch:

@@ -1,9 +1,10 @@
+"use client";
+
 import Link from "next/link";
 
-import { getSupabaseAdmin } from "@/lib/supabase/admin";
-import type { AuditEvent, Supplier, Transaction } from "@/lib/types";
-
-export const dynamic = "force-dynamic";
+import EraseAllButton from "@/components/EraseAllButton";
+import { db } from "@/lib/db";
+import { useQuery } from "@/lib/use-query";
 
 const RISK_BADGE: Record<string, string> = {
   high: "bg-red-50 text-red-700 ring-red-200 dark:bg-red-950 dark:text-red-300 dark:ring-red-900",
@@ -132,42 +133,46 @@ const icons = {
   ),
 };
 
-export default async function DashboardPage() {
-  const supabase = getSupabaseAdmin();
-
-  const [
-    { count: batchCount },
-    { data: transactions },
-    { count: findingCount },
-    { data: suppliers },
-    { data: recentEvents },
-  ] = await Promise.all([
-    supabase.from("batches").select("*", { count: "exact", head: true }),
-    supabase
-      .from("transactions")
-      .select()
-      .order("created_at", { ascending: false })
-      .limit(20)
-      .returns<Transaction[]>(),
-    supabase.from("findings").select("*", { count: "exact", head: true }),
-    supabase
-      .from("suppliers")
-      .select()
-      .order("supplier_code")
-      .returns<Supplier[]>(),
-    supabase
-      .from("audit_events")
-      .select()
-      .order("created_at", { ascending: false })
-      .limit(10)
-      .returns<AuditEvent[]>(),
+async function loadDashboard() {
+  const [batchCount, transactions, findingCount, suppliers, events] = await Promise.all([
+    db.count("batches"),
+    db.all("transactions"),
+    db.count("findings"),
+    db.all("suppliers"),
+    db.all("audit_events"),
   ]);
+  return {
+    batchCount,
+    transactions: transactions
+      .sort((a, b) => b.created_at.localeCompare(a.created_at))
+      .slice(0, 20),
+    findingCount,
+    suppliers: suppliers.sort((a, b) => a.supplier_code.localeCompare(b.supplier_code)),
+    recentEvents: events
+      .sort((a, b) => b.created_at.localeCompare(a.created_at) || b.id - a.id)
+      .slice(0, 10),
+  };
+}
 
-  const txns = transactions ?? [];
+export default function DashboardPage() {
+  const { data, error, loading, reload } = useQuery(loadDashboard);
+
+  if (loading || !data) {
+    return (
+      <main className="mx-auto w-full max-w-5xl px-6 py-10">
+        <p className="text-sm text-zinc-500">
+          {error ? `Could not read local data: ${error}` : "Loading…"}
+        </p>
+      </main>
+    );
+  }
+
+  const { batchCount, transactions, findingCount, suppliers, recentEvents } = data;
+  const txns = transactions;
   const highRisk = txns.filter((t) => t.risk_level === "high").length;
   const blocked = txns.filter((t) => t.status === "blocked").length;
   const supplierName = (id: string | null) =>
-    suppliers?.find((s) => s.id === id)?.name ?? "—";
+    suppliers.find((s) => s.id === id)?.name ?? "—";
 
   return (
     <main className="mx-auto w-full max-w-5xl space-y-8 px-6 py-10">
@@ -175,8 +180,8 @@ export default async function DashboardPage() {
         <div>
           <h1 className="text-2xl font-semibold tracking-tight">Dashboard</h1>
           <p className="mt-1 text-sm text-zinc-500">
-            Accounts-payable control overview · {findingCount ?? 0} control
-            finding{(findingCount ?? 0) === 1 ? "" : "s"} recorded
+            Accounts-payable control overview · {findingCount} control
+            finding{findingCount === 1 ? "" : "s"} recorded · stored only in this browser
           </p>
         </div>
         <Link
@@ -188,7 +193,7 @@ export default async function DashboardPage() {
       </div>
 
       <section className="grid grid-cols-2 gap-4 lg:grid-cols-4">
-        <StatTile label="Batches" value={batchCount ?? 0} icon={icons.batches} />
+        <StatTile label="Batches" value={batchCount} icon={icons.batches} />
         <StatTile label="Transactions" value={txns.length} icon={icons.txns} />
         <StatTile label="High risk" value={highRisk} icon={icons.risk} accent />
         <StatTile label="Blocked" value={blocked} icon={icons.blocked} accent />
@@ -220,7 +225,7 @@ export default async function DashboardPage() {
                     >
                       <td className="px-5 py-3.5">
                         <Link
-                          href={`/transactions/${t.id}`}
+                          href={`/transaction?id=${t.id}`}
                           className="font-medium hover:underline"
                         >
                           {t.txn_code}
@@ -278,7 +283,7 @@ export default async function DashboardPage() {
             Supplier registry
           </h2>
           <div className="space-y-3">
-            {(suppliers ?? []).map((s) => (
+            {suppliers.map((s) => (
               <Card key={s.id} className="p-4">
                 <div className="flex items-center justify-between gap-3">
                   <p className="font-medium">{s.name}</p>
@@ -302,7 +307,7 @@ export default async function DashboardPage() {
                 </dl>
               </Card>
             ))}
-            {(suppliers ?? []).length === 0 && (
+            {suppliers.length === 0 && (
               <Card className="p-4 text-sm text-zinc-400">
                 No suppliers resolved yet.
               </Card>
@@ -316,7 +321,7 @@ export default async function DashboardPage() {
           </h2>
           <Card className="p-2">
             <ul className="divide-y divide-zinc-100 dark:divide-zinc-800">
-              {(recentEvents ?? []).map((event) => (
+              {recentEvents.map((event) => (
                 <li key={event.id} className="flex items-center gap-3 px-3 py-2.5">
                   <span
                     className={`h-1.5 w-1.5 shrink-0 rounded-full ${
@@ -337,7 +342,7 @@ export default async function DashboardPage() {
                   </span>
                 </li>
               ))}
-              {(recentEvents ?? []).length === 0 && (
+              {recentEvents.length === 0 && (
                 <li className="px-3 py-2.5 text-sm text-zinc-400">
                   No activity yet.
                 </li>
@@ -346,6 +351,10 @@ export default async function DashboardPage() {
           </Card>
         </section>
       </div>
+
+      <footer className="border-t border-zinc-200 pt-6 dark:border-zinc-800">
+        <EraseAllButton onDone={reload} />
+      </footer>
     </main>
   );
 }

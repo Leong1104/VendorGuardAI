@@ -3,9 +3,12 @@
 import { useEffect, useRef, useState } from "react";
 import { useRouter } from "next/navigation";
 
-// Runs the pipeline for a freshly uploaded batch: classify/extract/normalize
-// each document, then link them into a transaction and run the deterministic
-// control checks. Redirects to the transaction when done.
+import { linkBatch, processBatch } from "@/lib/pipeline";
+
+// Runs the pipeline for a freshly stored batch, entirely in this browser:
+// classify/extract/normalize each document, then link them into a
+// transaction and run the deterministic control checks. Redirects to the
+// transaction when done.
 export default function AnalyzeRunner({ batchId }: { batchId: string }) {
   const router = useRouter();
   const started = useRef(false);
@@ -20,27 +23,14 @@ export default function AnalyzeRunner({ batchId }: { batchId: string }) {
 
     (async () => {
       try {
-        const processRes = await fetch(`/api/batches/${batchId}/process`, {
-          method: "POST",
+        const result = await processBatch(batchId, (done, total, fileName) => {
+          if (fileName) setStage(`Reading ${fileName} (${done + 1} of ${total})…`);
         });
-        const processData = await processRes.json();
-        if (!processRes.ok) {
-          throw new Error(processData.error ?? `Processing failed (${processRes.status})`);
-        }
-        if (processData.failures?.length) {
-          throw new Error(processData.failures.join("; "));
-        }
+        if (result.failures.length) throw new Error(result.failures.join("; "));
 
         setStage("Resolving supplier, linking documents, running control checks…");
-        const linkRes = await fetch(`/api/batches/${batchId}/link`, {
-          method: "POST",
-        });
-        const linkData = await linkRes.json();
-        if (!linkRes.ok) {
-          throw new Error(linkData.error ?? `Linking failed (${linkRes.status})`);
-        }
-
-        router.push(`/transactions/${linkData.transaction_id}`);
+        const linked = await linkBatch(batchId);
+        router.push(`/transaction?id=${linked.transaction_id}`);
       } catch (err) {
         setError(err instanceof Error ? err.message : "Analysis failed");
       }

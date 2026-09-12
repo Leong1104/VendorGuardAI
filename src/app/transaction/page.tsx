@@ -1,17 +1,12 @@
+"use client";
+
 import Link from "next/link";
-import { notFound } from "next/navigation";
+import { useSearchParams } from "next/navigation";
+import { Suspense, useCallback } from "react";
 
 import ReviewActions from "@/components/ReviewActions";
-import { getSupabaseAdmin } from "@/lib/supabase/admin";
-import type {
-  AuditEvent,
-  Document,
-  Finding,
-  Supplier,
-  Transaction,
-} from "@/lib/types";
-
-export const dynamic = "force-dynamic";
+import { db } from "@/lib/db";
+import { useQuery } from "@/lib/use-query";
 
 const RISK_META: Record<string, { badge: string; bar: string; label: string }> = {
   high: {
@@ -141,58 +136,46 @@ function ExplanationBody({ text }: { text: string }) {
   );
 }
 
-export default async function TransactionPage({
-  params,
-}: {
-  params: Promise<{ id: string }>;
-}) {
-  const { id } = await params;
-  const supabase = getSupabaseAdmin();
+async function loadTransaction(id: string) {
+  const txn = await db.get("transactions", id);
+  if (!txn) return null;
+  const [suppliers, allFindings, links, allDocs, events] = await Promise.all([
+    db.all("suppliers"),
+    db.all("findings"),
+    db.all("transaction_documents"),
+    db.all("documents"),
+    db.all("audit_events"),
+  ]);
+  const supplier = suppliers.find((s) => s.id === txn.supplier_id) ?? null;
+  const findings = allFindings
+    .filter((f) => f.transaction_id === id)
+    .sort((a, b) => b.points - a.points);
+  const linkedIds = links.filter((l) => l.transaction_id === id).map((l) => l.document_id);
+  const documents = allDocs
+    .filter((d) => linkedIds.includes(d.id))
+    .sort((a, b) => a.created_at.localeCompare(b.created_at));
+  const auditEvents = events
+    .filter((e) => e.subject_id === id)
+    .sort((a, b) => a.created_at.localeCompare(b.created_at) || a.id - b.id);
+  return { txn, supplier, findings, documents, auditEvents };
+}
 
-  const { data: txn } = await supabase
-    .from("transactions")
-    .select()
-    .eq("id", id)
-    .maybeSingle<Transaction>();
-  if (!txn) notFound();
+function TransactionView({ id }: { id: string }) {
+  const loader = useCallback(() => loadTransaction(id), [id]);
+  const { data, error, loading, reload } = useQuery(loader);
 
-  const [{ data: supplier }, { data: findings }, { data: links }, { data: auditEvents }] =
-    await Promise.all([
-      txn.supplier_id
-        ? supabase
-            .from("suppliers")
-            .select()
-            .eq("id", txn.supplier_id)
-            .maybeSingle<Supplier>()
-        : Promise.resolve({ data: null }),
-      supabase
-        .from("findings")
-        .select()
-        .eq("transaction_id", id)
-        .order("points", { ascending: false })
-        .returns<Finding[]>(),
-      supabase
-        .from("transaction_documents")
-        .select("document_id, role, documents(*)")
-        .eq("transaction_id", id),
-      supabase
-        .from("audit_events")
-        .select()
-        .eq("subject_id", id)
-        .order("created_at", { ascending: true })
-        .returns<AuditEvent[]>(),
-    ]);
+  if (loading) return <PageMessage>Loading transaction…</PageMessage>;
+  if (error) return <PageMessage>Could not read local data: {error}</PageMessage>;
+  if (!data) return <PageMessage>Transaction not found in this browser.</PageMessage>;
 
-  const documents = (links ?? [])
-    .map((l) => l.documents as unknown as Document)
-    .filter(Boolean);
+  const { txn, supplier, findings, documents, auditEvents } = data;
   const docName = (docId: string) =>
     documents.find((d) => d.id === docId)?.file_name ?? docId;
 
   // The audit trail records what produced the narrative, so the UI can be
   // honest about whether an AI model was involved.
   const explanationIsTemplate =
-    (auditEvents ?? []).find((e) => e.action === "explanation_generated")
+    auditEvents.find((e) => e.action === "explanation_generated")
       ?.details?.model === "local-template";
 
   const requestedAccount = documents
@@ -214,7 +197,7 @@ export default async function TransactionPage({
           <div>
             {txn.batch_id && (
               <Link
-                href={`/batches/${txn.batch_id}`}
+                href={`/batch?id=${txn.batch_id}`}
                 className="text-xs text-zinc-400 hover:text-zinc-600 hover:underline dark:hover:text-zinc-200"
               >
                 ← Batch documents
@@ -298,7 +281,7 @@ export default async function TransactionPage({
       <section>
         <SectionTitle>Analyst review</SectionTitle>
         <Card className="p-6">
-          <ReviewActions transactionId={txn.id} status={txn.status} />
+          <ReviewActions transactionId={txn.id} status={txn.status} onChange={reload} />
         </Card>
       </section>
 
@@ -343,9 +326,9 @@ export default async function TransactionPage({
 
       {/* Findings */}
       <section>
-        <SectionTitle>Control findings ({findings?.length ?? 0})</SectionTitle>
+        <SectionTitle>Control findings ({findings.length})</SectionTitle>
         <div className="space-y-3">
-          {(findings ?? []).map((finding) => (
+          {findings.map((finding) => (
             <Card
               key={finding.id}
               className="border-l-4 !border-l-red-400 p-5 dark:!border-l-red-600"
@@ -379,7 +362,7 @@ export default async function TransactionPage({
               </div>
             </Card>
           ))}
-          {(findings ?? []).length === 0 && (
+          {findings.length === 0 && (
             <Card className="p-5 text-sm text-zinc-400">
               No control failures detected.
             </Card>
@@ -414,7 +397,7 @@ export default async function TransactionPage({
         <SectionTitle>Audit trail</SectionTitle>
         <Card className="p-5">
           <ol className="relative space-y-4 border-l border-zinc-200 pl-5 dark:border-zinc-700">
-            {(auditEvents ?? []).map((event) => (
+            {auditEvents.map((event) => (
               <li key={event.id} className="relative">
                 <span
                   className={`absolute -left-[26px] top-1.5 h-2.5 w-2.5 rounded-full ring-4 ring-white dark:ring-zinc-900 ${
@@ -429,12 +412,36 @@ export default async function TransactionPage({
                 </p>
               </li>
             ))}
-            {(auditEvents ?? []).length === 0 && (
+            {auditEvents.length === 0 && (
               <li className="text-sm text-zinc-400">No events recorded.</li>
             )}
           </ol>
         </Card>
       </section>
     </main>
+  );
+}
+
+function PageMessage({ children }: { children: React.ReactNode }) {
+  return (
+    <main className="mx-auto w-full max-w-4xl px-6 py-10">
+      <p className="text-sm text-zinc-500">{children}</p>
+    </main>
+  );
+}
+
+// Static export cannot prerender dynamic segments, so the id travels as a
+// query parameter. useSearchParams needs a Suspense boundary.
+function TransactionFromQuery() {
+  const id = useSearchParams().get("id");
+  if (!id) return <PageMessage>No transaction id given.</PageMessage>;
+  return <TransactionView id={id} />;
+}
+
+export default function TransactionPage() {
+  return (
+    <Suspense fallback={<PageMessage>Loading transaction…</PageMessage>}>
+      <TransactionFromQuery />
+    </Suspense>
   );
 }

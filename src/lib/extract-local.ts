@@ -1,5 +1,4 @@
 import type { ExtractedFields } from "@/lib/fields";
-import { extractPdfLines } from "@/lib/pdf-text";
 import type { DocType } from "@/lib/types";
 
 // Local (no-API) classification and field extraction over the PDF text
@@ -121,7 +120,7 @@ function currency(lines: string[], amount: string | null): string | null {
 
 // ---------- public API ----------
 
-/** Pure parser over text lines; also used by the browser build later. */
+/** Pure parser over text lines (runs in the browser and in Node scripts). */
 export function extractFieldsFromLines(lines: string[]): ExtractedFields {
   const { doc_type, confidence } = classifyLines(lines);
   const total_amount = labelled(
@@ -165,10 +164,4 @@ export function extractFieldsFromLines(lines: string[]): ExtractedFields {
     payment_status: labelled(lines, /^(Payment\s+Status|Status)$/i),
     line_items: lineItems(lines),
   };
-}
-
-/** Classify one PDF and extract its fields without any external API. */
-export async function classifyAndExtractLocal(pdf: Uint8Array): Promise<ExtractedFields> {
-  const lines = await extractPdfLines(pdf);
-  return extractFieldsFromLines(lines);
 }

@@ -3,6 +3,8 @@
 import { useRef, useState } from "react";
 import { useRouter } from "next/navigation";
 
+import { createBatch } from "@/lib/pipeline";
+
 export default function UploadForm() {
   const router = useRouter();
   const inputRef = useRef<HTMLInputElement>(null);
@@ -22,16 +24,13 @@ export default function UploadForm() {
     setBusy(true);
     setError(null);
 
-    const form = new FormData();
-    for (const file of files) form.append("files", file);
-
     try {
-      const res = await fetch("/api/batches", { method: "POST", body: form });
-      const data = await res.json();
-      if (!res.ok) throw new Error(data.error ?? `Upload failed (${res.status})`);
-      router.push(`/batches/${data.batch.id}`);
+      // Files are hashed and stored in this browser's IndexedDB; nothing is
+      // uploaded anywhere.
+      const batch = await createBatch(files);
+      router.push(`/batch?id=${batch.id}`);
     } catch (err) {
-      setError(err instanceof Error ? err.message : "Upload failed");
+      setError(err instanceof Error ? err.message : "Could not store files");
       setBusy(false);
     }
   }
@@ -81,7 +80,7 @@ export default function UploadForm() {
         disabled={files.length === 0 || busy}
         className="w-full rounded-lg bg-zinc-900 py-3 font-medium text-white transition-opacity disabled:opacity-40 dark:bg-white dark:text-zinc-900"
       >
-        {busy ? "Uploading…" : `Upload ${files.length || ""} document${files.length === 1 ? "" : "s"}`}
+        {busy ? "Storing…" : `Analyze ${files.length || ""} document${files.length === 1 ? "" : "s"}`}
       </button>
     </form>
   );

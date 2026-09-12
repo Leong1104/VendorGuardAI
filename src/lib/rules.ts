@@ -1,4 +1,4 @@
-import type { NormalizedFields } from "@/lib/extract";
+import type { NormalizedFields } from "@/lib/fields";
 import type { FindingEvidence, RiskLevel, RuleCode } from "@/lib/types";
 
 // Deterministic control checks over normalized fields. This module is pure
