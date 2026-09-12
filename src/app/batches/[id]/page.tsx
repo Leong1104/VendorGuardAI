@@ -88,14 +88,19 @@ export default async function BatchPage({
   const hasUnclassified = docs.some((d) => !d.doc_type);
 
   return (
-    <main className="mx-auto min-h-screen max-w-3xl space-y-8 p-8">
+    <main className="mx-auto w-full max-w-4xl space-y-8 px-6 py-10">
       <div>
-        <Link href="/" className="text-sm text-zinc-500 hover:underline">
+        <Link
+          href="/"
+          className="text-xs text-zinc-400 hover:text-zinc-600 hover:underline dark:hover:text-zinc-200"
+        >
           ← New batch
         </Link>
-        <h1 className="mt-2 text-2xl font-semibold tracking-tight">Batch</h1>
+        <h1 className="mt-1 text-2xl font-semibold tracking-tight">
+          Document batch
+        </h1>
         <p className="mt-1 text-sm text-zinc-500">
-          {batch.id} · status:{" "}
+          <span className="font-mono text-xs">{batch.id}</span> · status{" "}
           <span className="font-medium text-zinc-900 dark:text-zinc-100">
             {batch.status}
           </span>{" "}
@@ -110,7 +115,7 @@ export default async function BatchPage({
       {transaction && (
         <Link
           href={`/transactions/${transaction.id}`}
-          className="block rounded-xl border border-zinc-200 p-4 transition-colors hover:border-zinc-400 dark:border-zinc-800 dark:hover:border-zinc-500"
+          className="block rounded-2xl border border-zinc-200 bg-white p-4 shadow-sm transition-colors hover:border-zinc-400 dark:border-zinc-800 dark:bg-zinc-900 dark:hover:border-zinc-500"
         >
           <div className="flex items-center justify-between gap-4">
             <div>
@@ -128,12 +133,14 @@ export default async function BatchPage({
       )}
 
       <section>
-        <h2 className="mb-3 text-lg font-medium">Documents ({docs.length})</h2>
+        <h2 className="mb-3 text-sm font-semibold uppercase tracking-wider text-zinc-400">
+          Documents ({docs.length})
+        </h2>
         <ul className="space-y-3">
           {docs.map((doc) => (
             <li
               key={doc.id}
-              className="rounded-xl border border-zinc-200 p-4 dark:border-zinc-800"
+              className="rounded-2xl border border-zinc-200 bg-white p-4 shadow-sm dark:border-zinc-800 dark:bg-zinc-900"
             >
               <div className="flex items-center justify-between gap-4">
                 <div className="min-w-0">
